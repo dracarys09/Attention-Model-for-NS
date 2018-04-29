@@ -26,7 +26,20 @@ from keras import initializers
 
 from keras.callbacks import ModelCheckpoint
 
-from config_27B import *
+from config import *
+
+
+DATA_PATH='/home/development/abhijeetd/Attention-Model-for-NS/data/data.tsv'                                                        
+GLOVE_DIR_PATH='/home/development/abhijeetd/Attention-Model-for-NS/glove.twitter.27B'                                               
+CHECKPOINT_FILE_PATH='/home/development/abhijeetd/Attention-Model-for-NS/models/weights.best.hdf5'                                  
+SAVE_DATE=True                                                                                                                      
+MAX_SENT_LENGTH=100                                                                                                                 
+MAX_SENTS=15                                                                                                                        
+MAX_NB_WORDS=20000                                                                                                                  
+EMBEDDING_DIM=100                                                                                                                   
+VALIDATION_SPLIT=0.2                                                                                                                
+NUM_EPOCHS=12                                                                                                                       
+BATCH_SIZE=100 
 
 
 def clean_str(string):
@@ -104,36 +117,49 @@ data = data[indices]
 labels = labels[indices]
 nb_validation_samples = int(VALIDATION_SPLIT * data.shape[0])
 
-x_train = data
-y_train = labels
-#x_train = data[:-nb_validation_samples]
-#y_train = labels[:-nb_validation_samples]
-#x_val = data[-nb_validation_samples:]
-#y_val = labels[-nb_validation_samples:]
+#x_train = data
+#y_train = labels
 
-print(type(y_train))
-print(type(x_train.shape))
-print(type(y_val))
-print(type(x_val.shape))
+if SAVE_DATA=True:
+    x_train = data[:-nb_validation_samples]
+    y_train = labels[:-nb_validation_samples]
+    x_val = data[-nb_validation_samples:]
+    y_val = labels[-nb_validation_samples:]
+    
+    print('..........................Saving Data.......................')
 
-print('..........................Saving Data.......................')
-with open('x_train.pkl', 'wb') as f:
-	cPickle.dump(x_train, f)
-with open('x_val.pkl', 'wb') as f:
-	cPickle.dump(x_val, f)
-with open('y_train.pkl', 'wb') as f:
-	cPickle.dump(y_train, f)
-with open('y_val.pkl', 'wb') as f:
-	cPickle.dump(y_val, f)
+    print(type(y_train))
+    print(type(x_train.shape))
+    print(type(y_val))
+    print(type(x_val.shape))
+
+    with open('x_train.pkl', 'wb') as f:
+        cPickle.dump(x_train, f)
+    with open('x_val.pkl', 'wb') as f:
+        cPickle.dump(x_val, f)
+    with open('y_train.pkl', 'wb') as f:
+        cPickle.dump(y_train, f)
+    with open('y_val.pkl', 'wb') as f:
+        cPickle.dump(y_val, f)
+
+else:
+    with open('/home/development/abhijeetd/Attention-Model-for-NS/x_val.pkl', 'rb') as f:
+        x_val = cPickle.load(f)
+    with open('/home/development/abhijeetd/Attention-Model-for-NS/y_val.pkl', 'rb') as f:
+        y_val = cPickle.load(f)
+    with open('/home/development/abhijeetd/Attention-Model-for-NS/x_train.pkl', 'rb') as f:
+        x_train = cPickle.load(f)
+    with open('/home/development/abhijeetd/Attention-Model-for-NS/y_train.pkl', 'rb') as f:
+        y_train = cPickle.load(f)
+
 
 
 print('Number of positive and negative numerical sarcastic tweets in traing and validation set')
 print(y_train.sum(axis=0))
 print(y_val.sum(axis=0))
 
-EMBEDDING_DIR = GLOVE_DIR_PATH
 embeddings_index = {}
-f = open(os.path.join(EMBEDDING_DIR, 'glove.twitter.27B.100d.txt'))
+f = open(os.path.join(GLOVE_DIR_PATH, 'glove.twitter.27B.100d.txt'))
 for line in f:
     values = line.split()
     word = values[0]
