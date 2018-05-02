@@ -1,1 +1,7 @@
 .ipynb_checkpoints
+glove.twitter.27B
+HAN_models
+x_train.pkl
+x_val.pkl
+y_train.pkl
+y_val.pkl

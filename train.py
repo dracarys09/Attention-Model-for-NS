@@ -25,22 +25,21 @@ from keras.engine.topology import Layer, InputSpec
 from keras import initializers
 
 from keras.callbacks import ModelCheckpoint
-
-from config import *
-
+from AttentionLayer import AttentionWeightedAverage
 
 DATA_PATH='/home/development/abhijeetd/Attention-Model-for-NS/data/data.tsv'                                                        
 GLOVE_DIR_PATH='/home/development/abhijeetd/Attention-Model-for-NS/glove.twitter.27B'                                               
-CHECKPOINT_FILE_PATH='/home/development/abhijeetd/Attention-Model-for-NS/models/weights.best.hdf5'                                  
-SAVE_DATE=True                                                                                                                      
+CHECKPOINT_FILE_PATH='/home/development/abhijeetd/Attention-Model-for-NS/HAN_models/100d/weights.best.hdf5'                                  
+SAVE_DATA=False                                                                                                                 
 MAX_SENT_LENGTH=100                                                                                                                 
 MAX_SENTS=15                                                                                                                        
 MAX_NB_WORDS=20000                                                                                                                  
 EMBEDDING_DIM=100                                                                                                                   
 VALIDATION_SPLIT=0.2                                                                                                                
 NUM_EPOCHS=12                                                                                                                       
-BATCH_SIZE=100 
+BATCH_SIZE=128 
 
+EVAL=False
 
 def clean_str(string):
     """
@@ -120,7 +119,7 @@ nb_validation_samples = int(VALIDATION_SPLIT * data.shape[0])
 #x_train = data
 #y_train = labels
 
-if SAVE_DATA=True:
+if SAVE_DATA==True:
     x_train = data[:-nb_validation_samples]
     y_train = labels[:-nb_validation_samples]
     x_val = data[-nb_validation_samples:]
@@ -184,90 +183,64 @@ embedding_layer = Embedding(len(word_index) + 1,
                             trainable=True)
 
 
-class AttentionWeightedAverage(Layer):
-    """
-    Computes a weighted average of the different channels across timesteps.
-    Uses 1 parameter pr. channel to compute the attention value for a single timestep.
-    """
-
-    def __init__(self, return_attention=False, **kwargs):
-        self.init = initializers.get('uniform')
-        self.supports_masking = True
-        self.return_attention = return_attention
-        super(AttentionWeightedAverage, self).__init__(** kwargs)
-
-    def build(self, input_shape):
-        self.input_spec = [InputSpec(ndim=3)]
-        assert len(input_shape) == 3
-
-        self.W = self.add_weight(shape=(input_shape[2], 1),
-                                 name='{}_W'.format(self.name),
-                                 initializer=self.init)
-        self.trainable_weights = [self.W]
-        super(AttentionWeightedAverage, self).build(input_shape)
-
-    def call(self, x, mask=None):
-        # computes a probability distribution over the timesteps
-        # uses 'max trick' for numerical stability
-        # reshape is done to avoid issue with Tensorflow
-        # and 1-dimensional weights
-        logits = K.dot(x, self.W)
-        x_shape = K.shape(x)
-        logits = K.reshape(logits, (x_shape[0], x_shape[1]))
-        ai = K.exp(logits - K.max(logits, axis=-1, keepdims=True))
-
-        # masked timesteps have zero weight
-        if mask is not None:
-            mask = K.cast(mask, K.floatx())
-            ai = ai * mask
-        att_weights = ai / K.sum(ai, axis=1, keepdims=True)
-        weighted_input = x * K.expand_dims(att_weights)
-        result = K.sum(weighted_input, axis=1)
-        if self.return_attention:
-            return [result, att_weights]
-        return result
-
-    def get_output_shape_for(self, input_shape):
-        return self.compute_output_shape(input_shape)
-
-    def compute_output_shape(self, input_shape):
-        output_len = input_shape[2]
-        if self.return_attention:
-            return [(input_shape[0], output_len), (input_shape[0], input_shape[1])]
-        return (input_shape[0], output_len)
-
-    # def compute_mask(self, input, input_mask=None):
-    #     if isinstance(input_mask, list):
-    #         print("here")
-    #         return [None] * len(input_mask)
-    #     else:
-    #         print("here1")
-    #         return None
-
 sentence_input = Input(shape=(MAX_SENT_LENGTH,), dtype='int32')
 embedded_sequences = embedding_layer(sentence_input)
-l_lstm = Bidirectional(LSTM(100, return_sequences=True))(embedded_sequences)
+l_lstm = Bidirectional(LSTM(200, return_sequences=True))(embedded_sequences)
 l_dense = TimeDistributed(Dense(200))(l_lstm)
 l_att = AttentionWeightedAverage()(l_dense)
 sentEncoder = Model(sentence_input, l_att)
 
 review_input = Input(shape=(MAX_SENTS,MAX_SENT_LENGTH), dtype='int32')
 review_encoder = TimeDistributed(sentEncoder)(review_input)
-l_lstm_sent = Bidirectional(LSTM(100, return_sequences=True))(review_encoder)
+l_lstm_sent = Bidirectional(LSTM(200, return_sequences=True))(review_encoder)
 l_dense_sent = TimeDistributed(Dense(200))(l_lstm_sent)
 l_att_sent = AttentionWeightedAverage()(l_dense_sent)
 preds = Dense(2, activation='softmax')(l_att_sent)
 model = Model(review_input, preds)
 
+
+if EVAL==True:
+
+    MODEL_PATH='/home/development/abhijeetd/Attention-Model-for-NS/HAN_models/200d/weights.best.hd5'
+
+    model.load_weights(MODEL_PATH)
+
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['acc'])
+
+    print("............................Evaluating the model.............................")
+
+    with open('/home/development/abhijeetd/Attention-Model-for-NS/x_val.pkl', 'rb') as f:
+        x_test = cPickle.load(f)
+    with open('/home/development/abhijeetd/Attention-Model-for-NS/y_val.pkl', 'rb') as f:
+        y_test = cPickle.load(f)
+
+    score = model.evaluate(x_test, y_test)
+    print(score)
+
+    print('...........................Making Predictions....................')
+    prediction = model.predict(x_test)
+    print ("Predictions")
+    print (len(prediction))
+
+    f = open('Predictions_200d_Glove_Embeddings.txt',"w")
+    for pred in prediction:
+        f.write(str(pred))
+        f.write("\n")
+        f.close()
+    exit(0)
+
+
 model.compile(loss='categorical_crossentropy',
-              optimizer='rmsprop',
+              optimizer='adam',
               metrics=['acc'])
 
 checkpoint = ModelCheckpoint(CHECKPOINT_FILE_PATH, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 callbacks_list = [checkpoint]
 
 
-print("model fitting - Hierachical attention network")
+print("model fitting - Attention Network")
 print(model.summary())
 model.fit(x_train, y_train, validation_data=(x_val, y_val),
           epochs=NUM_EPOCHS, batch_size=BATCH_SIZE, callbacks=callbacks_list)
+
+
