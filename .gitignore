@@ -5,3 +5,4 @@ x_train.pkl
 x_val.pkl
 y_train.pkl
 y_val.pkl
+__pycache__

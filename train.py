@@ -39,7 +39,7 @@ VALIDATION_SPLIT=0.2
 NUM_EPOCHS=12                                                                                                                       
 BATCH_SIZE=128 
 
-EVAL=False
+EVAL=True
 
 def clean_str(string):
     """
@@ -201,7 +201,7 @@ model = Model(review_input, preds)
 
 if EVAL==True:
 
-    MODEL_PATH='/home/development/abhijeetd/Attention-Model-for-NS/HAN_models/200d/weights.best.hd5'
+    MODEL_PATH='/home/development/abhijeetd/Attention-Model-for-NS/HAN_models/100d/weights.best.hd5'
 
     model.load_weights(MODEL_PATH)
 
@@ -222,7 +222,7 @@ if EVAL==True:
     print ("Predictions")
     print (len(prediction))
 
-    f = open('Predictions_200d_Glove_Embeddings.txt',"w")
+    f = open('Predictions_100d.txt',"w")
     for pred in prediction:
         f.write(str(pred))
         f.write("\n")
